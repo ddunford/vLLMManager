@@ -4,6 +4,7 @@ const ollamaService = require('../services/ollamaService');
 const portService = require('../services/portService');
 const settingsService = require('../services/settingsService');
 const { getDatabase } = require('../database/init');
+const Sse = require('../utils/sse'); // Added Sse utility
 
 const router = express.Router();
 
@@ -420,92 +421,80 @@ router.get('/:id/models', async (req, res) => {
   }
 });
 
-// Pull model to Ollama instance
-router.post('/:id/models', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { modelName } = req.body;
-    
-    if (!modelName) {
-      return res.status(400).json({ error: 'Model name is required' });
-    }
-    
-    const db = getDatabase();
-    db.get('SELECT * FROM ollama_instances WHERE id = ?', [id], async (err, instance) => {
-      if (err) {
-        db.close();
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (!instance) {
-        db.close();
-        return res.status(404).json({ error: 'Ollama instance not found' });
-      }
-      
-      try {
-        // Add model to database with downloading status
-        const modelId = uuidv4();
-        db.run(
-          'INSERT INTO ollama_models (id, instance_id, name, status) VALUES (?, ?, ?, ?)',
-          [modelId, id, modelName, 'downloading'],
-          async function(err) {
-            if (err) {
-              db.close();
-              return res.status(500).json({ error: 'Failed to save model to database' });
-            }
-            
-            try {
-              // Pull model from Ollama
-              const result = await ollamaService.pullModel(instance.port, modelName);
-              
-              // Update model status in database
-              db.run(
-                'UPDATE ollama_models SET status = ?, size = ?, modified_at = ?, digest = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                ['ready', result.size, result.modified_at, result.digest, modelId],
-                function(err) {
-                  db.close();
-                  if (err) {
-                    console.error('Error updating model status:', err);
-                  }
-                  res.json({ 
-                    message: 'Model pulled successfully',
-                    model: {
-                      id: modelId,
-                      name: modelName,
-                      status: 'ready',
-                      size: result.size,
-                      modified_at: result.modified_at,
-                      digest: result.digest
-                    }
-                  });
-                }
-              );
-            } catch (error) {
-              // Update model status to failed
-              db.run(
-                'UPDATE ollama_models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                ['failed', modelId],
-                function(err) {
-                  db.close();
-                  if (err) {
-                    console.error('Error updating model status:', err);
-                  }
-                  res.status(500).json({ error: 'Failed to pull model: ' + error.message });
-                }
-              );
-            }
-          }
-        );
-      } catch (error) {
-        db.close();
-        res.status(500).json({ error: 'Failed to pull model: ' + error.message });
-      }
-    });
-  } catch (error) {
-    console.error('Error pulling Ollama model:', error);
-    res.status(500).json({ error: 'Failed to pull model' });
+// Pull model to Ollama instance (SSE endpoint for real-time progress)
+router.get('/:id/models/pull', (req, res) => {
+  const sse = new Sse(req, res);
+  const { modelName } = req.query;
+  const { id: instanceId } = req.params;
+
+  if (!modelName) {
+    sse.send({ error: 'Model name is required' }, 'error');
+    return sse.close();
   }
+
+  const db = getDatabase();
+  db.get('SELECT * FROM ollama_instances WHERE id = ?', [instanceId], async (err, instance) => {
+    if (err || !instance) {
+      db.close();
+      sse.send({ error: 'Ollama instance not found' }, 'error');
+      return sse.close();
+    }
+
+    const modelId = uuidv4();
+
+    // Insert a record for the new model
+    db.run(
+      'INSERT INTO ollama_models (id, instance_id, name, status) VALUES (?, ?, ?, ?)',
+      [modelId, instanceId, modelName, 'downloading'],
+      async function (err) {
+        if (err) {
+          db.close();
+          sse.send({ error: 'Failed to create model record in database' }, 'error');
+          return sse.close();
+        }
+
+        sse.send({ modelId, message: 'Starting download...' }, 'start');
+
+        try {
+          // Use the new streaming pull function
+          const result = await ollamaService.pullModelStream(
+            instance.port,
+            modelName,
+            (progress) => {
+              // Send each progress update to the client
+              sse.send(progress, 'progress');
+            }
+          );
+          
+          // Update model status in database on success
+          db.run(
+            'UPDATE ollama_models SET status = ?, size = ?, modified_at = ?, digest = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['ready', result.size || 0, new Date().toISOString(), result.digest, modelId],
+            (updateErr) => {
+              if (updateErr) console.error('Error finalizing model status:', updateErr);
+              sse.send({ message: 'Model downloaded successfully' }, 'done');
+              sse.close();
+              db.close();
+            }
+          );
+        } catch (pullError) {
+          // Update model status to failed on error
+          db.run(
+            'UPDATE ollama_models SET status = ? WHERE id = ?',
+            ['failed', modelId],
+            (updateErr) => {
+              if (updateErr) console.error('Error setting model status to failed:', updateErr);
+              sse.send({ error: pullError.message || 'Failed to pull model' }, 'error');
+              sse.close();
+              db.close();
+            }
+          );
+        }
+      }
+    );
+  });
 });
+
 
 // Delete model from Ollama instance
 router.delete('/:id/models/:modelName', async (req, res) => {

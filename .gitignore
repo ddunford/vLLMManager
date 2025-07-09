@@ -113,3 +113,9 @@ yarn.lock
 
 # Webpack
 .webpack/ 
+
+# Model directories - keep the folder, ignore the contents
+/ollama-models/*
+!/ollama-models/.gitkeep
+/vllm-models/*
+!/vllm-models/.gitkeep 

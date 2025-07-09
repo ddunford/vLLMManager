@@ -55,7 +55,7 @@ export const ollamaApi = {
   remove: (id) => api.delete(`/ollama/${id}`),
   getLogs: (id, tail = 100) => api.get(`/ollama/${id}/logs?tail=${tail}`),
   getModels: (id) => api.get(`/ollama/${id}/models`),
-  pullModel: (id, modelName) => api.post(`/ollama/${id}/models`, { modelName }),
+  pullModel: (id, modelName) => `/api/ollama/${id}/models/pull?modelName=${encodeURIComponent(modelName)}`,
   deleteModel: (id, modelName) => api.delete(`/ollama/${id}/models/${modelName}`),
 };
 

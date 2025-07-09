@@ -32,8 +32,8 @@ const OllamaDetails = () => {
   const [logsLoading, setLogsLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showPullForm, setShowPullForm] = useState(false);
-  const [pulling, setPulling] = useState(false);
   const [modelName, setModelName] = useState('');
+  const [downloads, setDownloads] = useState({});
 
   const fetchInstance = async () => {
     try {
@@ -134,19 +134,63 @@ const OllamaDetails = () => {
       return;
     }
 
-    try {
-      setPulling(true);
-      await ollamaApi.pullModel(id, modelName);
-      toast.success(`Model ${modelName} pulled successfully`);
-      setShowPullForm(false);
-      setModelName('');
+    const pullUrl = ollamaApi.pullModel(id, modelName);
+    const eventSource = new EventSource(pullUrl);
+
+    setShowPullForm(false);
+    toast.success(`Starting download for ${modelName}...`);
+
+    eventSource.addEventListener('start', (e) => {
+      const data = JSON.parse(e.data);
+      setDownloads(prev => ({ ...prev, [data.modelId]: { name: modelName, status: 'Starting...', progress: 0 } }));
+    });
+
+    eventSource.addEventListener('progress', (e) => {
+      const progress = JSON.parse(e.data);
+      setDownloads(prev => {
+        const currentDownload = Object.values(prev).find(d => d.name === modelName);
+        if (!currentDownload) return prev;
+
+        const modelId = Object.keys(prev).find(key => prev[key] === currentDownload);
+        const percentage = progress.total && progress.completed ? Math.round((progress.completed / progress.total) * 100) : 0;
+        
+        return {
+          ...prev,
+          [modelId]: {
+            ...currentDownload,
+            status: progress.status,
+            progress: percentage
+          }
+        };
+      });
+    });
+
+    eventSource.addEventListener('done', (e) => {
+      toast.success(`Successfully downloaded ${modelName}`);
+      eventSource.close();
+      setDownloads(prev => {
+        const newDownloads = { ...prev };
+        const modelId = Object.keys(newDownloads).find(key => newDownloads[key].name === modelName);
+        if (modelId) delete newDownloads[modelId];
+        return newDownloads;
+      });
+      fetchInstance(); // Refresh the model list
+    });
+
+    eventSource.onerror = (e) => {
+      toast.error(`Error downloading ${modelName}.`);
+      console.error('SSE Error:', e);
+      eventSource.close();
+      setDownloads(prev => {
+        const newDownloads = { ...prev };
+        const modelId = Object.keys(newDownloads).find(key => newDownloads[key].name === modelName);
+        if (modelId) delete newDownloads[modelId];
+        return newDownloads;
+      });
       fetchInstance();
-    } catch (error) {
-      console.error('Error pulling model:', error);
-      toast.error(error.response?.data?.error || 'Failed to pull model');
-    } finally {
-      setPulling(false);
-    }
+    };
+
+    setModelName('');
   };
 
   const handleDeleteModel = async (modelName) => {
@@ -193,6 +237,52 @@ const OllamaDetails = () => {
         return <span className="badge badge-warning">{status}</span>;
     }
   };
+
+  const renderModelItem = (model) => {
+    const downloadInfo = Object.values(downloads).find(d => d.name === model.name);
+
+    if (downloadInfo) {
+      return (
+        <div key={model.name} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+          <div className="flex items-center space-x-3 w-full">
+            <Package className="w-5 h-5 text-blue-600" />
+            <div className="w-full">
+              <div className="font-medium text-blue-900">{model.name}</div>
+              <div className="text-sm text-blue-700 capitalize">{downloadInfo.status}</div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${downloadInfo.progress}%` }}></div>
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-blue-900">{downloadInfo.progress}%</div>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div key={model.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <Package className="w-5 h-5 text-gray-600" />
+          <div>
+            <div className="font-medium">{model.name}</div>
+            <div className="text-sm text-gray-600">
+              {model.size && `Size: ${formatSize(model.size)}`}
+              {model.modified_at && ` • Modified: ${formatDate(model.modified_at)}`}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          {getModelStatusBadge(model.status)}
+          <button
+            onClick={() => handleDeleteModel(model.name)}
+            className="btn btn-danger btn-xs btn-ghost"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
@@ -335,20 +425,11 @@ const OllamaDetails = () => {
                   />
                   <button
                     type="submit"
-                    disabled={pulling}
+                    disabled={Object.values(downloads).some(d => d.name === modelName)}
                     className="btn btn-primary btn-sm"
                   >
-                    {pulling ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                        Pulling...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 mr-2" />
-                        Pull
-                      </>
-                    )}
+                    <Download className="w-4 h-4 mr-2" />
+                    Pull
                   </button>
                   <button
                     type="button"
@@ -364,38 +445,23 @@ const OllamaDetails = () => {
             {/* Models List */}
             {instance.models && instance.models.length > 0 ? (
               <div className="space-y-3">
-                {instance.models.map((model) => (
-                  <div key={model.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Package className="w-5 h-5 text-gray-600" />
-                      <div>
-                        <div className="font-medium">{model.name}</div>
-                        <div className="text-sm text-gray-600">
-                          {model.size && `Size: ${formatSize(model.size)}`}
-                          {model.modified_at && ` • Modified: ${formatDate(model.modified_at)}`}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {getModelStatusBadge(model.status)}
-                      <button
-                        onClick={() => handleDeleteModel(model.name)}
-                        className="btn btn-danger btn-xs"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                {instance.models.map(renderModelItem)}
+                {Object.values(downloads).filter(d => !instance.models.some(m => m.name === d.name)).map(d => renderModelItem(d))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600">No models downloaded yet</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Pull a model to get started
-                </p>
-              </div>
+              Object.keys(downloads).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.values(downloads).map(d => renderModelItem(d))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">No models downloaded yet</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Pull a model to get started
+                  </p>
+                </div>
+              )
             )}
           </div>
 

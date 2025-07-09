@@ -305,35 +305,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* GPU Stats */}
-      {gpuStats && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">GPU Statistics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {gpuStats.gpus?.map((gpu, index) => (
-              <div key={index} className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-900">GPU {gpu.id}</h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    gpu.memoryUsed / gpu.memoryTotal > 0.8 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {gpu.memoryUsed}MB / {gpu.memoryTotal}MB
-                  </span>
-                </div>
-                <div className="mt-2">
-                  <div className="text-xs text-gray-500">{gpu.name}</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Utilization: {gpu.utilization}%
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* GPU Overview */}
       {gpuStats && (
         <div className="card p-6">
@@ -447,114 +418,114 @@ const Dashboard = () => {
         </div>
       )}
 
-      {instances.length === 0 ? (
-        <div className="card p-12 text-center">
-          <Server className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No instances running</h2>
-          <p className="text-gray-600 mb-6">Get started by creating your first vLLM instance</p>
-          <Link to="/create" className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Instance
-          </Link>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {instances.map((instance) => (
-            <div key={instance.id} className="card p-6 fade-in">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                    {instance.name}
-                  </h3>
-                  <p className="text-sm text-gray-600 truncate">
-                    {instance.model_name}
-                  </p>
-                </div>
-                {getStatusBadge(instance.status, instance.running)}
+      {/* Instances List */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {instances.length === 0 && !loading && !showOrphans && (
+          <div className="col-span-full text-center py-12">
+            <Server className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No instances running</h2>
+            <p className="text-gray-600 mb-6">Get started by creating your first vLLM instance</p>
+            <Link to="/create" className="btn btn-primary">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Instance
+            </Link>
+          </div>
+        )}
+        {instances.map((instance) => (
+          <div key={instance.id} className="card p-6 fade-in">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  {instance.name}
+                </h3>
+                <p className="text-sm text-gray-600 truncate">
+                  {instance.model_name}
+                </p>
               </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Port:</span>
-                  <span className="font-medium">{instance.port}</span>
-                </div>
-                {instance.gpu_id && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">GPU:</span>
-                    <span className="font-medium">
-                      {instance.gpu_id === 'auto' ? 'Auto' : `GPU ${instance.gpu_id}`}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Created:</span>
-                  <span className="font-medium">{formatDate(instance.created_at)}</span>
-                </div>
-                {instance.running && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">URL:</span>
-                    <a
-                      href={`http://localhost:${instance.port}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-800 flex items-center"
-                    >
-                      <ExternalLink className="w-3 h-3 mr-1" />
-                      Open
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center">
-                <div className="flex space-x-2">
-                  {instance.running ? (
-                    <button
-                      onClick={() => handleStop(instance)}
-                      className="btn btn-warning btn-sm"
-                      title="Stop"
-                    >
-                      <Square className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleStart(instance)}
-                      className="btn btn-success btn-sm"
-                      title="Start"
-                    >
-                      <Play className="w-4 h-4" />
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={() => handleRestart(instance)}
-                    className="btn btn-secondary btn-sm"
-                    title="Restart"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                  
-                  <button
-                    onClick={() => handleRemove(instance)}
-                    className="btn btn-danger btn-sm"
-                    title="Remove"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <Link
-                  to={`/instance/${instance.id}`}
-                  className="btn btn-secondary btn-sm"
-                >
-                  <Activity className="w-4 h-4 mr-1" />
-                  Details
-                </Link>
-              </div>
+              {getStatusBadge(instance.status, instance.running)}
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Port:</span>
+                <span className="font-medium">{instance.port}</span>
+              </div>
+              {instance.gpu_id && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">GPU:</span>
+                  <span className="font-medium">
+                    {instance.gpu_id === 'auto' ? 'Auto' : `GPU ${instance.gpu_id}`}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Created:</span>
+                <span className="font-medium">{formatDate(instance.created_at)}</span>
+              </div>
+              {instance.running && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">URL:</span>
+                  <a
+                    href={`http://localhost:${instance.port}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-800 flex items-center"
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" />
+                    Open
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center">
+              <div className="flex space-x-2">
+                {instance.running ? (
+                  <button
+                    onClick={() => handleStop(instance)}
+                    className="btn btn-warning btn-sm"
+                    title="Stop"
+                  >
+                    <Square className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleStart(instance)}
+                    className="btn btn-success btn-sm"
+                    title="Start"
+                  >
+                    <Play className="w-4 h-4" />
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => handleRestart(instance)}
+                  className="btn btn-secondary btn-sm"
+                  title="Restart"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+                
+                <button
+                  onClick={() => handleRemove(instance)}
+                  className="btn btn-danger btn-sm"
+                  title="Remove"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <Link
+                to={`/instance/${instance.id}`}
+                className="btn btn-secondary btn-sm"
+              >
+                <Activity className="w-4 h-4 mr-1" />
+                Details
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

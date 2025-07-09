@@ -184,6 +184,10 @@ class OllamaService {
       await container.remove({ force: true });
       return { status: 'removed' };
     } catch (error) {
+      if (error.statusCode === 404) {
+        console.warn(`Ollama container ${containerId} not found, but proceeding with cleanup.`);
+        return { status: 'already_removed' };
+      }
       console.error('Error removing Ollama container:', error);
       throw error;
     }
@@ -238,20 +242,51 @@ class OllamaService {
   }
 
   /**
-   * Pull model to Ollama instance
+   * Pull model to Ollama instance with real-time progress updates.
+   * @param {number} port - The port of the Ollama instance.
+   * @param {string} modelName - The name of the model to pull.
+   * @param {function} onProgress - Callback to handle progress updates.
    */
-  async pullModel(port, modelName) {
-    try {
-      const response = await axios.post(`http://localhost:${port}/api/pull`, {
-        name: modelName
-      }, {
-        timeout: 300000 // 5 minutes timeout for model download
+  async pullModelStream(port, modelName, onProgress) {
+    const stream = await axios.post(
+      `http://localhost:${port}/api/pull`,
+      { name: modelName, stream: true },
+      { responseType: 'stream' }
+    );
+
+    let finalStatus = null;
+
+    stream.data.on('data', (chunk) => {
+      const lines = chunk.toString().split('\n').filter(line => line.length > 0);
+      for (const line of lines) {
+        try {
+          const progress = JSON.parse(line);
+          onProgress(progress);
+          if (progress.status === 'success') {
+            finalStatus = progress;
+          }
+        } catch (e) {
+          console.warn('Could not parse Ollama progress line:', line);
+        }
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      stream.data.on('end', () => {
+        if (finalStatus) {
+          console.log(`Successfully pulled model ${modelName}`);
+          resolve(finalStatus);
+        } else {
+          console.error(`Stream for ${modelName} ended without success status.`);
+          reject(new Error('Pull stream ended without a success status.'));
+        }
       });
-      return response.data;
-    } catch (error) {
-      console.error('Error pulling model to Ollama:', error);
-      throw error;
-    }
+
+      stream.data.on('error', (err) => {
+        console.error(`Error pulling model ${modelName}:`, err);
+        reject(err);
+      });
+    });
   }
 
   /**

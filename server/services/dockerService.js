@@ -231,6 +231,10 @@ class DockerService {
       await container.remove({ force: true });
       return { status: 'removed' };
     } catch (error) {
+      if (error.statusCode === 404) {
+        console.warn(`vLLM container ${containerId} not found, but proceeding with cleanup.`);
+        return { status: 'already_removed' };
+      }
       console.error('Error removing container:', error);
       throw error;
     }

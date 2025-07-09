@@ -133,29 +133,59 @@ class GPUService {
   async getGPUUsage() {
     try {
       const db = getDatabase();
-      
-      return new Promise((resolve, reject) => {
+      const vllmUsagePromise = new Promise((resolve, reject) => {
         db.all(
           'SELECT gpu_id, COUNT(*) as instances FROM instances WHERE status = ? AND gpu_id IS NOT NULL GROUP BY gpu_id',
           ['running'],
           (err, rows) => {
-            db.close();
-            if (err) {
-              reject(err);
-              return;
-            }
-            
+            if (err) return reject(err);
             const usage = {};
             rows.forEach(row => {
-              usage[row.gpu_id] = {
-                instances: row.instances
-              };
+              usage[row.gpu_id] = { instances: row.instances };
             });
-            
             resolve(usage);
           }
         );
       });
+
+      const ollamaUsagePromise = new Promise((resolve, reject) => {
+        db.all(
+          'SELECT config, COUNT(*) as instances FROM ollama_instances WHERE status = ? GROUP BY config',
+          ['running'],
+          (err, rows) => {
+            if (err) return reject(err);
+            const usage = {};
+            rows.forEach(row => {
+              try {
+                const config = JSON.parse(row.config);
+                const gpuId = config.gpuId || 'auto'; // Default to auto if not specified
+                if (!usage[gpuId]) {
+                  usage[gpuId] = { instances: 0 };
+                }
+                usage[gpuId].instances += row.instances;
+              } catch (e) {
+                console.warn('Could not parse Ollama config for GPU usage:', e);
+              }
+            });
+            resolve(usage);
+          }
+        );
+      });
+
+      const [vllmUsage, ollamaUsage] = await Promise.all([vllmUsagePromise, ollamaUsagePromise]);
+
+      // Merge the usage data
+      const combinedUsage = { ...vllmUsage };
+      for (const gpuId in ollamaUsage) {
+        if (combinedUsage[gpuId]) {
+          combinedUsage[gpuId].instances += ollamaUsage[gpuId].instances;
+        } else {
+          combinedUsage[gpuId] = ollamaUsage[gpuId];
+        }
+      }
+      
+      db.close();
+      return combinedUsage;
     } catch (error) {
       console.error('Error getting GPU usage:', error);
       return {};
