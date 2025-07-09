@@ -124,7 +124,7 @@ docker run -d \
 
 Use the model discovery interface to search and browse available models:
 
-![Model Browsing](browse.png)
+![Model Browsing](images/browse.png)
 
 - **Search**: Find models by name, description, or tags
 - **Popular Models**: Browse trending and most downloaded models
@@ -137,7 +137,7 @@ Use the model discovery interface to search and browse available models:
 - **Instance Details**: Click on any instance to view logs, detailed information, and API usage examples
 - **Actions**: Start, stop, restart, or remove instances directly from the dashboard
 
-![Instance Management](instance.png)
+![Instance Management](images/instance.png)
 
 The instance detail page provides:
 - **Real-time Logs**: Monitor container output and debug issues
@@ -149,7 +149,7 @@ The instance detail page provides:
 
 Use the built-in testing interface to verify your vLLM instances:
 
-![Testing Interface](test.png)
+![Testing Interface](images/test.png)
 
 - **Interactive Chat**: Test conversational models with a chat interface
 - **API Testing**: Send custom requests and view responses
