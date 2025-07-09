@@ -15,15 +15,15 @@ A comprehensive web application for managing vLLM (Virtual Large Language Model)
 ## Screenshots
 
 ### Model Discovery & Browsing
-![Browse Models](browse.png)
+![Browse Models](images/browse.png)
 *Search and browse HuggingFace models with detailed information and popularity metrics*
 
 ### Instance Management
-![Instance Details](instance.png)
+![Instance Details](images/instance.png)
 *View detailed instance information, logs, and manage running containers*
 
 ### Testing & API Usage
-![Testing Interface](test.png)
+![Testing Interface](images/test.png)
 *Test your vLLM instances with an interactive chat interface*
 
 ## Architecture
