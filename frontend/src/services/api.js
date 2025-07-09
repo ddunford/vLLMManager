@@ -45,10 +45,16 @@ export const containerApi = {
 
 // Models API
 export const modelApi = {
-  search: (query, limit = 20, filter = 'text-generation') => 
-    api.get(`/models/search?query=${encodeURIComponent(query)}&limit=${limit}&filter=${filter}`),
-  getPopular: (limit = 50) => api.get(`/models/popular?limit=${limit}`),
+  search: (query, options = {}) => api.get('/models/search', { 
+    params: { 
+      query, 
+      limit: options.limit || 20,
+      filter: options.filter || 'text-generation'
+    } 
+  }),
+  getPopular: (limit = 50) => api.get('/models/popular', { params: { limit } }),
   getDetails: (modelId) => api.get(`/models/${encodeURIComponent(modelId)}`),
+  getConfig: (modelId) => api.get(`/models/${encodeURIComponent(modelId)}/config`),
   validate: (modelId, apiKey) => api.post('/models/validate', { modelId, apiKey }),
 };
 

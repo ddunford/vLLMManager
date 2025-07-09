@@ -41,7 +41,22 @@ class DockerService {
   }
 
   async createVLLMContainer(instanceConfig) {
-    const { id, name, modelName, port, apiKey, gpuSelection, hfToken } = instanceConfig;
+    const { 
+      id, 
+      name, 
+      modelName, 
+      port, 
+      apiKey, 
+      gpuSelection, 
+      hfToken,
+      // Advanced configuration options
+      maxContextLength,
+      gpuMemoryUtilization = 0.85,
+      maxNumSeqs = 256,
+      trustRemoteCode = false,
+      quantization,
+      tensorParallelSize = 1
+    } = instanceConfig;
     
     try {
       const containerName = `vllm-${name}-${id}`;
@@ -56,6 +71,14 @@ class DockerService {
       // Security: Don't log sensitive tokens/keys
       console.log('HF Token provided:', hfToken ? 'Yes' : 'No');
       console.log('API Key provided:', apiKey ? 'Yes' : 'No');
+      console.log('Advanced config:', {
+        maxContextLength,
+        gpuMemoryUtilization,
+        maxNumSeqs,
+        trustRemoteCode,
+        quantization,
+        tensorParallelSize
+      });
       
       // Build command array
       const command = [
@@ -63,16 +86,38 @@ class DockerService {
         '--api-key', apiKey || 'localkey',
         '--port', '8000',
         '--host', '0.0.0.0',
-        '--max-model-len', '16384'
+        // Memory optimization parameters
+        '--gpu-memory-utilization', gpuMemoryUtilization.toString(),
+        '--max-num-seqs', maxNumSeqs.toString()
       ];
 
-      // Add tensor-parallel-size for multi-GPU setups
+      // Add context length if specified
+      if (maxContextLength && maxContextLength > 0) {
+        command.push('--max-model-len', maxContextLength.toString());
+      }
+
+      // Add trust remote code if enabled
+      if (trustRemoteCode) {
+        command.push('--trust-remote-code');
+      }
+
+      // Add quantization if specified
+      if (quantization && quantization !== '') {
+        command.push('--quantization', quantization);
+      }
+
+      // Add tensor parallel size for multi-GPU setups
       if (selectedGPU && deviceConfig.gpuId === 'auto') {
         const gpuInfo = await gpuService.getGPUInfo();
         if (gpuInfo.gpus && gpuInfo.gpus.length > 1) {
-          command.push('--tensor-parallel-size', gpuInfo.gpus.length.toString());
+          const parallelSize = Math.min(tensorParallelSize, gpuInfo.gpus.length);
+          command.push('--tensor-parallel-size', parallelSize.toString());
         }
+      } else if (tensorParallelSize > 1) {
+        command.push('--tensor-parallel-size', tensorParallelSize.toString());
       }
+
+      console.log('Final vLLM command:', command);
 
       // Base container configuration
       const containerConfig = {

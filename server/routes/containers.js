@@ -145,7 +145,20 @@ router.get('/with-orphan-check', async (req, res) => {
 // Create new instance
 router.post('/', async (req, res) => {
   try {
-    const { name, modelName, apiKey, hostname, gpuSelection } = req.body;
+    const { 
+      name, 
+      modelName, 
+      apiKey, 
+      hostname, 
+      gpuSelection,
+      // Advanced configuration options
+      maxContextLength,
+      gpuMemoryUtilization,
+      maxNumSeqs,
+      trustRemoteCode,
+      quantization,
+      tensorParallelSize
+    } = req.body;
     
     if (!name || !modelName) {
       return res.status(400).json({ error: 'Name and model name are required' });
@@ -168,13 +181,20 @@ router.post('/', async (req, res) => {
       port,
       apiKey: effectiveApiKey,
       hfToken: effectiveHfToken,
-      gpuSelection: effectiveGPUSelection
+      gpuSelection: effectiveGPUSelection,
+      // Pass through advanced configuration
+      maxContextLength: maxContextLength || null,
+      gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
+      maxNumSeqs: maxNumSeqs || 256,
+      trustRemoteCode: trustRemoteCode || false,
+      quantization: quantization || null,
+      tensorParallelSize: tensorParallelSize || 1
     };
     
     // Create container
     const containerResult = await dockerService.createVLLMContainer(instanceConfig);
     
-    // Save to database
+    // Save to database with advanced config
     const db = getDatabase();
     const config = JSON.stringify({
       modelName,
@@ -184,7 +204,16 @@ router.post('/', async (req, res) => {
       port,
       deviceInfo: containerResult.deviceInfo,
       gpuId: containerResult.gpuId,
-      gpuSelection: effectiveGPUSelection
+      gpuSelection: effectiveGPUSelection,
+      // Store advanced configuration
+      advancedConfig: {
+        maxContextLength: maxContextLength || null,
+        gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
+        maxNumSeqs: maxNumSeqs || 256,
+        trustRemoteCode: trustRemoteCode || false,
+        quantization: quantization || null,
+        tensorParallelSize: tensorParallelSize || 1
+      }
     });
     
     db.run(
@@ -208,6 +237,14 @@ router.post('/', async (req, res) => {
           deviceInfo: containerResult.deviceInfo,
           gpuId: containerResult.gpuId,
           selectedGPU: containerResult.selectedGPU,
+          advancedConfig: {
+            maxContextLength: maxContextLength || null,
+            gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
+            maxNumSeqs: maxNumSeqs || 256,
+            trustRemoteCode: trustRemoteCode || false,
+            quantization: quantization || null,
+            tensorParallelSize: tensorParallelSize || 1
+          },
           usingDefaults: {
             apiKey: !apiKey,
             hfToken: !effectiveHfToken,

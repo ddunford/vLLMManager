@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const settingsService = require('../services/settingsService');
+const modelService = require('../services/modelService');
 
 const router = express.Router();
 
@@ -8,6 +9,33 @@ const router = express.Router();
 router.get('/test', (req, res) => {
   console.log('=== TEST ROUTE HIT ===');
   res.json({ message: 'Test route working', timestamp: new Date().toISOString() });
+});
+
+// Get model configuration and recommended parameters
+router.get('/:modelId/config', async (req, res) => {
+  try {
+    const { modelId } = req.params;
+    const decodedModelId = decodeURIComponent(modelId);
+    
+    console.log('Getting configuration for model:', decodedModelId);
+    
+    const result = await modelService.getRecommendedParams(decodedModelId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error getting model configuration:', error);
+    res.status(500).json({
+      error: 'Failed to get model configuration',
+      details: error.message,
+      modelConfig: { name: req.params.modelId, error: error.message },
+      recommendations: {
+        maxModelLen: null,
+        gpuMemoryUtilization: 0.85,
+        maxNumSeqs: 256,
+        trustRemoteCode: false
+      }
+    });
+  }
 });
 
 // Helper function to get HuggingFace headers with authentication
