@@ -1,0 +1,77 @@
+services:
+  vllm-manager:
+    build: .
+    container_name: vllm-manager
+    ports:
+      - "3001:3001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - vllm-cache:/root/.cache/huggingface
+      - vllm-persistent-data:/app/server/data
+      - vllm-logs:/app/server/logs
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - DEFAULT_HOSTNAME=${DEFAULT_HOSTNAME:-localhost}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - FRONTEND_URL=${FRONTEND_URL:-}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # We need write access for logs and database
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    depends_on:
+      - vllm-manager-db
+    networks:
+      - vllm-network
+    # GPU access for detecting and monitoring GPUs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  vllm-manager-db:
+    image: alpine:latest
+    container_name: vllm-manager-db
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    volumes:
+      - vllm-db-data:/data
+    networks:
+      - vllm-network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+
+volumes:
+  vllm-cache:
+    driver: local
+  vllm-db-data:
+    driver: local
+  vllm-persistent-data:
+    driver: local
+  vllm-logs:
+    driver: local
+
+networks:
+  vllm-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: vllm-br0
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16 

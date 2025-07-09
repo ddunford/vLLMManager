@@ -1,0 +1,83 @@
+services:
+  vllm-manager:
+    build: .
+    container_name: vllm-manager
+    ports:
+      - "3001:3001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./server:/app/server
+      - ./frontend:/app/frontend
+      - ./package.json:/app/package.json
+      - vllm-cache:/root/.cache/huggingface
+      - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
+      # Keep data and logs persistent but mount over the code directory
+      - vllm-persistent-data:/app/server/data
+      - vllm-logs:/app/server/logs
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - DEFAULT_HOSTNAME=${DEFAULT_HOSTNAME:-localhost}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # We need write access for logs and database
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    depends_on:
+      - vllm-manager-db
+    networks:
+      - vllm-network
+    # GPU access for detecting and monitoring GPUs
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidia1:/dev/nvidia1
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+
+  vllm-manager-db:
+    image: alpine:latest
+    container_name: vllm-manager-db
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    volumes:
+      - vllm-db-data:/data
+    networks:
+      - vllm-network
+
+  # Example vLLM instance (will be created dynamically by the app)
+  # vllm-example:
+  #   image: vllm/vllm-openai:latest
+  #   container_name: vllm-example
+  #   ports:
+  #     - "8001:8000"
+  #   command: >
+  #     --model Qwen/Qwen2.5-1.5B-Instruct
+  #     --api-key localkey
+  #     --port 8000
+  #     --host 0.0.0.0
+  #   environment:
+  #     - HF_HUB_ENABLE_HF_TRANSFER=1
+  #   volumes:
+  #     - vllm-cache:/root/.cache/huggingface
+  #   restart: unless-stopped
+  #   networks:
+  #     - vllm-network
+
+volumes:
+  vllm-cache:
+    driver: local
+  vllm-db-data:
+    driver: local
+  vllm-persistent-data:
+    driver: local
+  vllm-logs:
+    driver: local
+
+networks:
+  vllm-network:
+    driver: bridge 
