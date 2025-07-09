@@ -93,16 +93,6 @@ const Header = () => {
               </Link>
             </nav>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            <Link
-              to="/create"
-              className="btn btn-primary btn-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Instance
-            </Link>
-          </div>
         </div>
       </div>
     </header>

@@ -424,11 +424,9 @@ const Dashboard = () => {
           <div className="col-span-full text-center py-12">
             <Server className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">No instances running</h2>
-            <p className="text-gray-600 mb-6">Get started by creating your first vLLM instance</p>
-            <Link to="/create" className="btn btn-primary">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Instance
-            </Link>
+            <p className="text-gray-600">
+              Create a new vLLM instance using the "Create Instance" link in the navigation bar.
+            </p>
           </div>
         )}
         {instances.map((instance) => (
