@@ -5,7 +5,10 @@ import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import ModelSearch from './pages/ModelSearch';
 import CreateInstance from './pages/CreateInstance';
+import EditInstance from './pages/EditInstance';
 import InstanceDetails from './pages/InstanceDetails';
+import OllamaManager from './pages/OllamaManager';
+import OllamaDetails from './pages/OllamaDetails';
 import Settings from './pages/Settings';
 import Test from './pages/Test';
 import './index.css';
@@ -20,6 +23,9 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/search" element={<ModelSearch />} />
             <Route path="/create" element={<CreateInstance />} />
+            <Route path="/edit/:id" element={<EditInstance />} />
+            <Route path="/ollama" element={<OllamaManager />} />
+            <Route path="/ollama/:id" element={<OllamaDetails />} />
             <Route path="/test" element={<Test />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/instance/:id" element={<InstanceDetails />} />

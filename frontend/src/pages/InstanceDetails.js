@@ -11,7 +11,8 @@ import {
   Terminal,
   Clock,
   Server,
-  Activity
+  Activity,
+  Edit
 } from 'lucide-react';
 import { containerApi } from '../services/api';
 import toast from 'react-hot-toast';
@@ -119,6 +120,10 @@ const InstanceDetails = () => {
       console.error('Error removing instance:', error);
       toast.error('Failed to remove instance');
     }
+  };
+
+  const handleEdit = () => {
+    navigate(`/edit/${id}`);
   };
 
   const getStatusBadge = (status, running) => {
@@ -263,13 +268,22 @@ const InstanceDetails = () => {
                 Restart
               </button>
             </div>
-            <button
-              onClick={handleRemove}
-              className="btn btn-danger btn-sm w-full"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Remove Instance
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleEdit}
+                className="btn btn-primary btn-sm flex-1"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Instance
+              </button>
+              <button
+                onClick={handleRemove}
+                className="btn btn-danger btn-sm flex-1"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove Instance
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -325,18 +339,79 @@ const InstanceDetails = () => {
                 http://localhost:{instance.port}
               </code>
             </div>
+
+            <div className="bg-gray-50 p-4 rounded-md">
+              <p className="text-sm text-gray-600 mb-2">Authentication:</p>
+              {instance.config && JSON.parse(instance.config).requireAuth !== false ? (
+                <div>
+                  <p className="text-sm font-medium text-green-700 mb-2">
+                    ✓ API Key Required (OpenAI-compatible)
+                  </p>
+                  {instance.api_key && (
+                    <code className="text-sm bg-white p-2 rounded border block">
+                      Authorization: Bearer {instance.api_key}
+                    </code>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm font-medium text-orange-700">
+                  ⚠ No Authentication Required (Public Access)
+                </p>
+              )}
+            </div>
             
             <div className="bg-gray-50 p-4 rounded-md">
-              <p className="text-sm text-gray-600 mb-2">Example cURL request:</p>
+              <p className="text-sm text-gray-600 mb-2">Example cURL request (OpenAI-compatible):</p>
               <code className="text-sm bg-white p-2 rounded border block whitespace-pre-wrap">
-{`curl -X POST http://localhost:${instance.port}/v1/chat/completions \\
+{instance.config && JSON.parse(instance.config).requireAuth !== false ? 
+`curl -X POST http://localhost:${instance.port}/v1/chat/completions \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer localkey" \\
+  -H "Authorization: Bearer ${instance.api_key || 'YOUR_API_KEY'}" \\
+  -d '{
+    "model": "${instance.model_name}",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 100
+  }'` :
+`curl -X POST http://localhost:${instance.port}/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
   -d '{
     "model": "${instance.model_name}",
     "messages": [{"role": "user", "content": "Hello!"}],
     "max_tokens": 100
   }'`}
+              </code>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-md">
+              <p className="text-sm text-gray-600 mb-2">Using with OpenUI or other OpenAI-compatible tools:</p>
+              <code className="text-sm bg-white p-2 rounded border block whitespace-pre-wrap">
+{`# Set environment variables
+export OPENAI_API_BASE="http://localhost:${instance.port}/v1"
+${instance.config && JSON.parse(instance.config).requireAuth !== false ? 
+`export OPENAI_API_KEY="${instance.api_key || 'YOUR_API_KEY'}"` : 
+'# No API key needed - authentication disabled'}
+
+# Use with OpenUI or any OpenAI SDK`}
+              </code>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-md">
+              <p className="text-sm text-gray-600 mb-2">Python SDK example:</p>
+              <code className="text-sm bg-white p-2 rounded border block whitespace-pre-wrap">
+{`from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:${instance.port}/v1",
+    api_key="${instance.config && JSON.parse(instance.config).requireAuth !== false ? 
+      (instance.api_key || 'YOUR_API_KEY') : 
+      'dummy'}"  # Use 'dummy' when auth is disabled
+)
+
+response = client.chat.completions.create(
+    model="${instance.model_name}",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(response.choices[0].message.content)`}
               </code>
             </div>
           </div>

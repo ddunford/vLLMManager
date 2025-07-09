@@ -25,7 +25,9 @@ const CreateInstance = () => {
   const [formData, setFormData] = useState({
     name: '',
     modelName: '',
-    apiKey: '',
+    apiKey: '',  // vLLM API key
+    requireAuth: true,  // New field for authentication toggle
+    hfApiKey: '',  // HuggingFace API key (separate)
     hostname: '',
     gpuSelection: '',
     // Advanced vLLM options
@@ -62,7 +64,8 @@ const CreateInstance = () => {
       // Auto-populate form with defaults
       setFormData(prev => ({
         ...prev,
-        apiKey: prev.apiKey || response.data.hfToken || '',
+        apiKey: prev.apiKey || response.data.apiKey || '',  // vLLM API key default
+        hfApiKey: prev.hfApiKey || response.data.hfToken || '',  // HuggingFace token default
         hostname: prev.hostname || response.data.hostname || 'localhost',
         gpuSelection: prev.gpuSelection || response.data.gpuSelection || 'auto'
       }));
@@ -159,7 +162,7 @@ const CreateInstance = () => {
       setValidating(true);
       setModelValidation(null);
       
-      const response = await modelApi.validate(formData.modelName, formData.apiKey);
+      const response = await modelApi.validate(formData.modelName, formData.hfApiKey);
       setModelValidation(response.data);
       
       if (response.data.valid && response.data.accessible) {
@@ -191,8 +194,8 @@ const CreateInstance = () => {
       newErrors.modelName = 'Model name is required';
     }
     
-    if (modelValidation?.requiresAuth && !formData.apiKey.trim()) {
-      newErrors.apiKey = 'API key is required for this model';
+    if (modelValidation?.requiresAuth && !formData.hfApiKey?.trim()) {
+      newErrors.hfApiKey = 'HuggingFace API key is required for this model';
     }
     
     if (formData.maxContextLength && (isNaN(formData.maxContextLength) || formData.maxContextLength < 1)) {
@@ -231,6 +234,7 @@ const CreateInstance = () => {
         name: formData.name,
         modelName: formData.modelName,
         apiKey: formData.apiKey || null,
+        requireAuth: formData.requireAuth,
         hostname: formData.hostname || null,
         gpuSelection: formData.gpuSelection || null,
         ...advancedConfig
@@ -400,29 +404,93 @@ const CreateInstance = () => {
 
               {/* Basic Configuration */}
               <div className="space-y-6">
-                {/* API Key */}
+                {/* Authentication Toggle */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="requireAuth"
+                        name="requireAuth"
+                        checked={formData.requireAuth}
+                        onChange={handleInputChange}
+                        className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Require API Key Authentication
+                      </span>
+                    </label>
+                    <Info className="w-4 h-4 text-gray-400" title="When disabled, the endpoint will accept requests without authentication" />
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Enable this for production use. Disable for local testing without authentication.
+                    {!formData.requireAuth && (
+                      <span className="text-orange-600 font-medium"> Warning: Endpoint will be publicly accessible!</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* API Key - Only show when authentication is required */}
+                {formData.requireAuth && (
+                  <div>
+                    <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
+                      vLLM API Key
+                      {defaults?.apiKey && !formData.apiKey && (
+                        <span className="text-green-600 text-xs ml-2">(using saved default)</span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        id="apiKey"
+                        name="apiKey"
+                        value={formData.apiKey}
+                        onChange={handleInputChange}
+                        placeholder={defaults?.apiKey ? "Using saved key..." : "sk-..."}
+                        className="input pl-10"
+                      />
+                      <Key className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      OpenAI-compatible API key for accessing the vLLM endpoint. Keys should start with 'sk-' for compatibility.
+                    </p>
+                  </div>
+                )}
+
+                {/* HuggingFace API Key - Separate from vLLM API key */}
                 <div>
-                  <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="hfApiKey" className="block text-sm font-medium text-gray-700 mb-2">
                     HuggingFace API Key {modelValidation?.requiresAuth && <span className="text-red-500">*</span>}
-                    {defaults?.hfToken && !formData.apiKey && (
+                    {defaults?.hfToken && !formData.hfApiKey && (
                       <span className="text-green-600 text-xs ml-2">(using saved default)</span>
                     )}
                   </label>
                   <div className="relative">
                     <input
                       type="password"
-                      id="apiKey"
-                      name="apiKey"
-                      value={formData.apiKey}
+                      id="hfApiKey"
+                      name="hfApiKey"
+                      value={formData.hfApiKey || ''}
                       onChange={handleInputChange}
                       placeholder={defaults?.hfToken ? "Using saved token..." : "hf_..."}
-                      className={`input pl-10 ${errors.apiKey ? 'border-red-500' : ''}`}
+                      className={`input pl-10 ${errors.hfApiKey ? 'border-red-500' : ''}`}
                     />
                     <Key className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
                   </div>
-                  {errors.apiKey && (
-                    <p className="text-red-600 text-sm mt-1">{errors.apiKey}</p>
+                  {errors.hfApiKey && (
+                    <p className="text-red-600 text-sm mt-1">{errors.hfApiKey}</p>
                   )}
+                  <p className="text-sm text-gray-600 mt-1">
+                    Required for gated/private models. Get your key from{' '}
+                    <a 
+                      href="https://huggingface.co/settings/tokens" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-800"
+                    >
+                      HuggingFace Settings
+                    </a>
+                  </p>
                 </div>
 
                 {/* Hostname */}

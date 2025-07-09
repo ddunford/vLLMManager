@@ -62,6 +62,37 @@ async function initializeDatabase() {
         )
       `);
 
+      // Create ollama_instances table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS ollama_instances (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          port INTEGER NOT NULL UNIQUE,
+          container_id TEXT,
+          status TEXT DEFAULT 'stopped',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          config TEXT,
+          api_key TEXT
+        )
+      `);
+
+      // Create ollama_models table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS ollama_models (
+          id TEXT PRIMARY KEY,
+          instance_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          size TEXT,
+          modified_at TEXT,
+          digest TEXT,
+          status TEXT DEFAULT 'downloading',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (instance_id) REFERENCES ollama_instances (id)
+        )
+      `);
+
       // Insert default settings
       db.run(`
         INSERT OR IGNORE INTO settings (key, value, description) VALUES 

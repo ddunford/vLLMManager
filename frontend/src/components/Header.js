@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Server, Search, Plus, Home, Settings, MessageSquare } from 'lucide-react';
+import { Server, Search, Plus, Home, Settings, MessageSquare, Package } from 'lucide-react';
 
 const Header = () => {
   const location = useLocation();
@@ -54,6 +54,18 @@ const Header = () => {
               >
                 <Plus className="w-4 h-4" />
                 <span>Create Instance</span>
+              </Link>
+              
+              <Link
+                to="/ollama"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/ollama') 
+                    ? 'text-primary-600 bg-primary-50' 
+                    : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>Ollama Manager</span>
               </Link>
               
               <Link

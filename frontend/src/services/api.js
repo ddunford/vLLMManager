@@ -36,11 +36,27 @@ export const containerApi = {
   checkOrphans: (autoImport = false) => api.get(`/containers/orphans?autoImport=${autoImport}`),
   importOrphans: (containerIds) => api.post('/containers/orphans/import', { containerIds }),
   create: (data) => api.post('/containers', data),
+  update: (id, data) => api.put(`/containers/${id}`, data),
   start: (id) => api.post(`/containers/${id}/start`),
   stop: (id) => api.post(`/containers/${id}/stop`),
   restart: (id) => api.post(`/containers/${id}/restart`),
   remove: (id) => api.delete(`/containers/${id}`),
   getLogs: (id, tail = 100) => api.get(`/containers/${id}/logs?tail=${tail}`),
+};
+
+// Ollama API
+export const ollamaApi = {
+  getAll: () => api.get('/ollama'),
+  get: (id) => api.get(`/ollama/${id}`),
+  create: (data) => api.post('/ollama', data),
+  start: (id) => api.post(`/ollama/${id}/start`),
+  stop: (id) => api.post(`/ollama/${id}/stop`),
+  restart: (id) => api.post(`/ollama/${id}/restart`),
+  remove: (id) => api.delete(`/ollama/${id}`),
+  getLogs: (id, tail = 100) => api.get(`/ollama/${id}/logs?tail=${tail}`),
+  getModels: (id) => api.get(`/ollama/${id}/models`),
+  pullModel: (id, modelName) => api.post(`/ollama/${id}/models`, { modelName }),
+  deleteModel: (id, modelName) => api.delete(`/ollama/${id}/models/${modelName}`),
 };
 
 // Models API

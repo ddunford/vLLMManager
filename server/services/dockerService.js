@@ -47,6 +47,7 @@ class DockerService {
       modelName, 
       port, 
       apiKey, 
+      requireAuth = true,  // New parameter to control authentication
       gpuSelection, 
       hfToken,
       // Advanced configuration options
@@ -70,6 +71,7 @@ class DockerService {
       console.log('DeviceConfig.hostConfig:', JSON.stringify(deviceConfig.hostConfig, null, 2));
       // Security: Don't log sensitive tokens/keys
       console.log('HF Token provided:', hfToken ? 'Yes' : 'No');
+      console.log('API Key required:', requireAuth ? 'Yes' : 'No');
       console.log('API Key provided:', apiKey ? 'Yes' : 'No');
       console.log('Advanced config:', {
         maxContextLength,
@@ -83,13 +85,22 @@ class DockerService {
       // Build command array
       const command = [
         '--model', modelName,
-        '--api-key', apiKey || 'localkey',
         '--port', '8000',
         '--host', '0.0.0.0',
         // Memory optimization parameters
         '--gpu-memory-utilization', gpuMemoryUtilization.toString(),
         '--max-num-seqs', maxNumSeqs.toString()
       ];
+
+      // Only add API key if authentication is required
+      // This ensures OpenAI-compatible authentication when enabled
+      if (requireAuth && apiKey) {
+        command.push('--api-key', apiKey);
+      } else if (requireAuth && !apiKey) {
+        // If auth is required but no key provided, use a default
+        command.push('--api-key', 'sk-localtest123');
+      }
+      // If requireAuth is false, don't add --api-key at all
 
       // Add context length if specified
       if (maxContextLength && maxContextLength > 0) {
@@ -134,7 +145,11 @@ class DockerService {
             Name: 'unless-stopped'
           },
           // Merge device-specific host configuration
-          ...deviceConfig.hostConfig
+          ...deviceConfig.hostConfig,
+          // Add persistent volume for models
+          Binds: [
+            `${process.cwd()}/vllm-models:/root/.cache/huggingface`
+          ]
         },
         NetworkingConfig: {
           EndpointsConfig: {

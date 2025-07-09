@@ -149,6 +149,7 @@ router.post('/', async (req, res) => {
       name, 
       modelName, 
       apiKey, 
+      requireAuth = true,  // New parameter
       hostname, 
       gpuSelection,
       // Advanced configuration options
@@ -166,10 +167,25 @@ router.post('/', async (req, res) => {
     
     // Get default settings and merge with provided values
     const defaults = await settingsService.getInstanceDefaults();
-    const effectiveApiKey = apiKey || defaults.apiKey; // vLLM API key
     const effectiveHfToken = defaults.hfToken; // HuggingFace token for model access
     const effectiveHostname = hostname || defaults.hostname;
     const effectiveGPUSelection = gpuSelection || defaults.gpuSelection;
+    
+    // Handle API key - ensure OpenAI compatibility with sk- prefix
+    let effectiveApiKey = null;
+    if (requireAuth) {
+      if (apiKey) {
+        // If user provided a key, use it (add sk- prefix if not present)
+        effectiveApiKey = apiKey.startsWith('sk-') ? apiKey : `sk-${apiKey}`;
+      } else if (defaults.apiKey) {
+        // Use default if available
+        effectiveApiKey = defaults.apiKey.startsWith('sk-') ? defaults.apiKey : `sk-${defaults.apiKey}`;
+      } else {
+        // Generate a default key for local testing
+        effectiveApiKey = `sk-localtest-${Date.now()}`;
+      }
+    }
+    // If requireAuth is false, effectiveApiKey remains null
     
     const instanceId = uuidv4();
     const port = await portService.allocatePort(instanceId);
@@ -180,6 +196,7 @@ router.post('/', async (req, res) => {
       modelName,
       port,
       apiKey: effectiveApiKey,
+      requireAuth,
       hfToken: effectiveHfToken,
       gpuSelection: effectiveGPUSelection,
       // Pass through advanced configuration
@@ -199,6 +216,7 @@ router.post('/', async (req, res) => {
     const config = JSON.stringify({
       modelName,
       apiKey: effectiveApiKey ? '***' : null,
+      requireAuth,
       hfToken: effectiveHfToken ? '***' : null,
       hostname: effectiveHostname,
       port,
@@ -237,6 +255,8 @@ router.post('/', async (req, res) => {
           deviceInfo: containerResult.deviceInfo,
           gpuId: containerResult.gpuId,
           selectedGPU: containerResult.selectedGPU,
+          requireAuth,
+          apiKeyProvided: !!effectiveApiKey,
           advancedConfig: {
             maxContextLength: maxContextLength || null,
             gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
@@ -246,7 +266,7 @@ router.post('/', async (req, res) => {
             tensorParallelSize: tensorParallelSize || 1
           },
           usingDefaults: {
-            apiKey: !apiKey,
+            apiKey: !apiKey && requireAuth,
             hfToken: !effectiveHfToken,
             hostname: !hostname,
             gpuSelection: !gpuSelection
@@ -378,6 +398,168 @@ router.post('/:id/restart', async (req, res) => {
   } catch (error) {
     console.error('Error restarting instance:', error);
     res.status(500).json({ error: 'Failed to restart instance' });
+  }
+});
+
+// Update instance
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, 
+      modelName, 
+      apiKey, 
+      requireAuth,
+      hostname, 
+      gpuSelection,
+      // Advanced configuration options
+      maxContextLength,
+      gpuMemoryUtilization,
+      maxNumSeqs,
+      trustRemoteCode,
+      quantization,
+      tensorParallelSize
+    } = req.body;
+    
+    if (!name || !modelName) {
+      return res.status(400).json({ error: 'Name and model name are required' });
+    }
+    
+    const db = getDatabase();
+    db.get('SELECT * FROM instances WHERE id = ?', [id], async (err, instance) => {
+      if (err) {
+        db.close();
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (!instance) {
+        db.close();
+        return res.status(404).json({ error: 'Instance not found' });
+      }
+      
+      try {
+        // Get default settings and merge with provided values
+        const defaults = await settingsService.getInstanceDefaults();
+        const effectiveHfToken = defaults.hfToken;
+        const effectiveHostname = hostname || defaults.hostname;
+        const effectiveGPUSelection = gpuSelection || defaults.gpuSelection;
+        
+        // Handle API key - ensure OpenAI compatibility with sk- prefix
+        let effectiveApiKey = null;
+        if (requireAuth) {
+          if (apiKey) {
+            effectiveApiKey = apiKey.startsWith('sk-') ? apiKey : `sk-${apiKey}`;
+          } else if (defaults.apiKey) {
+            effectiveApiKey = defaults.apiKey.startsWith('sk-') ? defaults.apiKey : `sk-${defaults.apiKey}`;
+          } else {
+            effectiveApiKey = `sk-localtest-${Date.now()}`;
+          }
+        }
+        
+        // Stop and remove existing container
+        if (instance.container_id) {
+          try {
+            await dockerService.stopContainer(instance.container_id);
+            await dockerService.removeContainer(instance.container_id);
+          } catch (error) {
+            console.warn('Error stopping/removing old container:', error);
+          }
+        }
+        
+        // Create new instance configuration
+        const instanceConfig = {
+          id: instance.id,
+          name,
+          modelName,
+          port: instance.port, // Keep the same port
+          apiKey: effectiveApiKey,
+          requireAuth,
+          hfToken: effectiveHfToken,
+          gpuSelection: effectiveGPUSelection,
+          // Pass through advanced configuration
+          maxContextLength: maxContextLength || null,
+          gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
+          maxNumSeqs: maxNumSeqs || 256,
+          trustRemoteCode: trustRemoteCode || false,
+          quantization: quantization || null,
+          tensorParallelSize: tensorParallelSize || 1
+        };
+        
+        // Create new container
+        const containerResult = await dockerService.createVLLMContainer(instanceConfig);
+        
+        // Update database with new configuration
+        const config = JSON.stringify({
+          modelName,
+          apiKey: effectiveApiKey ? '***' : null,
+          requireAuth,
+          hfToken: effectiveHfToken ? '***' : null,
+          hostname: effectiveHostname,
+          port: instance.port,
+          deviceInfo: containerResult.deviceInfo,
+          gpuId: containerResult.gpuId,
+          gpuSelection: effectiveGPUSelection,
+          // Store advanced configuration
+          advancedConfig: {
+            maxContextLength: maxContextLength || null,
+            gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
+            maxNumSeqs: maxNumSeqs || 256,
+            trustRemoteCode: trustRemoteCode || false,
+            quantization: quantization || null,
+            tensorParallelSize: tensorParallelSize || 1
+          }
+        });
+        
+        db.run(
+          'UPDATE instances SET name = ?, model_name = ?, container_id = ?, status = ?, config = ?, api_key = ?, gpu_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [name, modelName, containerResult.containerId, 'running', config, effectiveApiKey, containerResult.gpuId, id],
+          function(err) {
+            db.close();
+            if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: 'Failed to update instance' });
+            }
+            
+            res.json({
+              id: instance.id,
+              name,
+              modelName,
+              port: instance.port,
+              containerId: containerResult.containerId,
+              status: 'running',
+              url: `http://${effectiveHostname}:${instance.port}`,
+              deviceInfo: containerResult.deviceInfo,
+              gpuId: containerResult.gpuId,
+              selectedGPU: containerResult.selectedGPU,
+              requireAuth,
+              apiKeyProvided: !!effectiveApiKey,
+              advancedConfig: {
+                maxContextLength: maxContextLength || null,
+                gpuMemoryUtilization: gpuMemoryUtilization || 0.85,
+                maxNumSeqs: maxNumSeqs || 256,
+                trustRemoteCode: trustRemoteCode || false,
+                quantization: quantization || null,
+                tensorParallelSize: tensorParallelSize || 1
+              },
+              usingDefaults: {
+                apiKey: !apiKey && requireAuth,
+                hfToken: !effectiveHfToken,
+                hostname: !hostname,
+                gpuSelection: !gpuSelection
+              },
+              updated: new Date().toISOString()
+            });
+          }
+        );
+      } catch (error) {
+        db.close();
+        console.error('Error updating instance:', error);
+        res.status(500).json({ error: 'Failed to update instance: ' + error.message });
+      }
+    });
+  } catch (error) {
+    console.error('Error updating instance:', error);
+    res.status(500).json({ error: 'Failed to update instance' });
   }
 });
 

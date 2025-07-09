@@ -58,6 +58,7 @@ async function startServer() {
     
     // Now import routes after database is initialized
     const containerRoutes = require('./routes/containers');
+    const ollamaRoutes = require('./routes/ollama');
     const modelRoutes = require('./routes/models');
     const systemRoutes = require('./routes/system');
     const settingsRoutes = require('./routes/settings');
@@ -91,6 +92,7 @@ async function startServer() {
 
     // Routes
     app.use('/api/containers', containerRoutes);
+    app.use('/api/ollama', ollamaRoutes);
     app.use('/api/models', modelRoutes);
     app.use('/api/system', systemRoutes);
     app.use('/api/settings', settingsRoutes);

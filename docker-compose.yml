@@ -6,9 +6,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./server:/app/server
-      - ./frontend:/app/frontend
       - ./package.json:/app/package.json
-      - vllm-cache:/root/.cache/huggingface
+      - ./vllm-models:/root/.cache/huggingface
       - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro
       - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
       # Keep data and logs persistent but mount over the code directory
@@ -66,13 +65,13 @@ services:
   #     - vllm-network
 
 volumes:
-  vllm-cache:
-    driver: local
   vllm-db-data:
     driver: local
   vllm-persistent-data:
     driver: local
   vllm-logs:
+    driver: local
+  ollama-models:
     driver: local
 
 networks:
