@@ -63,10 +63,31 @@ class TestService {
 
       const baseUrl = `http://${process.env.DEFAULT_HOSTNAME || 'localhost'}:${instance.port}`;
       
-      // Test basic health endpoint
-      const healthResponse = await axios.get(`${baseUrl}/health`, {
-        timeout: 5000
-      });
+      // Test basic health endpoint - try with authentication first, then without
+      let healthResponse;
+      try {
+        healthResponse = await axios.get(`${baseUrl}/health`, {
+          timeout: 5000,
+          headers: {
+            'Authorization': `Bearer ${instance.api_key || 'localkey'}`
+          }
+        });
+      } catch (healthError) {
+        // If health endpoint fails, try without auth or use models endpoint as health check
+        try {
+          healthResponse = await axios.get(`${baseUrl}/health`, {
+            timeout: 5000
+          });
+        } catch (noAuthError) {
+          // Use models endpoint as health check if health endpoint doesn't work
+          healthResponse = await axios.get(`${baseUrl}/v1/models`, {
+            timeout: 5000,
+            headers: {
+              'Authorization': `Bearer ${instance.api_key || 'localkey'}`
+            }
+          });
+        }
+      }
 
       // Try to get model info
       let modelInfo = null;

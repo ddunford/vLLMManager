@@ -12,6 +12,20 @@ A comprehensive web application for managing vLLM (Virtual Large Language Model)
 - 🐳 **Docker-based**: Containerized deployment for easy setup and scaling
 - 📱 **Mobile Friendly**: Responsive design works on all devices
 
+## Screenshots
+
+### Model Discovery & Browsing
+![Browse Models](browse.png)
+*Search and browse HuggingFace models with detailed information and popularity metrics*
+
+### Instance Management
+![Instance Details](instance.png)
+*View detailed instance information, logs, and manage running containers*
+
+### Testing & API Usage
+![Testing Interface](test.png)
+*Test your vLLM instances with an interactive chat interface*
+
 ## Architecture
 
 - **Frontend**: React.js with Tailwind CSS for styling
@@ -106,11 +120,41 @@ docker run -d \
 3. Optionally provide a HuggingFace API key for gated models
 4. Click **Create Instance**
 
+### Browsing Models
+
+Use the model discovery interface to search and browse available models:
+
+![Model Browsing](browse.png)
+
+- **Search**: Find models by name, description, or tags
+- **Popular Models**: Browse trending and most downloaded models
+- **Model Details**: View comprehensive information including parameters, license, and usage examples
+- **Direct Integration**: Click any model to use it for creating a new instance
+
 ### Managing Instances
 
 - **Dashboard**: View all instances with their status and basic controls
 - **Instance Details**: Click on any instance to view logs, detailed information, and API usage examples
 - **Actions**: Start, stop, restart, or remove instances directly from the dashboard
+
+![Instance Management](instance.png)
+
+The instance detail page provides:
+- **Real-time Logs**: Monitor container output and debug issues
+- **Status Information**: Current state, port assignments, and resource usage
+- **API Examples**: Copy-paste ready code examples for different programming languages
+- **Configuration Details**: View model parameters and container settings
+
+### Testing Your Instances
+
+Use the built-in testing interface to verify your vLLM instances:
+
+![Testing Interface](test.png)
+
+- **Interactive Chat**: Test conversational models with a chat interface
+- **API Testing**: Send custom requests and view responses
+- **Response Analysis**: Examine model outputs and performance metrics
+- **Error Diagnosis**: Debug connection and model issues
 
 ### Using the API
 

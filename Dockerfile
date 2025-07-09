@@ -11,8 +11,10 @@ RUN npm run build
 # Production stage
 FROM node:18-slim
 
-# Create non-root user
-RUN groupadd -r vllm && useradd -r -g vllm vllm
+# Create non-root user and docker group
+RUN groupadd -r vllm && useradd -r -g vllm vllm \
+    && groupadd -g 111 docker \
+    && usermod -aG docker vllm
 
 # Install Docker CLI, curl for health checks, and nvidia-smi for GPU detection
 RUN apt-get update && apt-get install -y \
@@ -52,7 +54,6 @@ USER vllm
 EXPOSE 3001
 
 # Set environment variables
-ENV NODE_ENV=production
 ENV PORT=3001
 
 # Health check

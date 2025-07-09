@@ -91,6 +91,11 @@ class DockerService {
           // Merge device-specific host configuration
           ...deviceConfig.hostConfig
         },
+        NetworkingConfig: {
+          EndpointsConfig: {
+            'vllm_vllm-network': {}
+          }
+        },
         Env: [
           'HF_HUB_ENABLE_HF_TRANSFER=1',
           // Add device-specific environment variables
