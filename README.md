@@ -46,7 +46,7 @@ A comprehensive web application for managing vLLM (Virtual Large Language Model)
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:ddunford/vLLMManager.git
    cd vllm-manager
    ```
 
