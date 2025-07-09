@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const dockerService = require('../services/dockerService');
 const portService = require('../services/portService');
 const settingsService = require('../services/settingsService');
+const orphanService = require('../services/orphanService');
 const { getDatabase } = require('../database/init');
 
 const router = express.Router();
@@ -47,6 +48,97 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching instances:', error);
     res.status(500).json({ error: 'Failed to fetch instances' });
+  }
+});
+
+// Check for orphaned containers
+router.get('/orphans', async (req, res) => {
+  try {
+    const autoImport = req.query.autoImport === 'true';
+    const results = await orphanService.checkAndImportOrphans(autoImport);
+    res.json(results);
+  } catch (error) {
+    console.error('Error checking orphaned containers:', error);
+    res.status(500).json({ error: 'Failed to check orphaned containers: ' + error.message });
+  }
+});
+
+// Import specific orphaned containers
+router.post('/orphans/import', async (req, res) => {
+  try {
+    const { containerIds } = req.body;
+    
+    if (!Array.isArray(containerIds)) {
+      return res.status(400).json({ error: 'containerIds must be an array' });
+    }
+    
+    // Get all orphaned containers
+    const orphanedContainers = await orphanService.detectOrphanedContainers();
+    
+    // Filter to only requested containers
+    const containersToImport = orphanedContainers.filter(container => 
+      containerIds.includes(container.dockerId)
+    );
+    
+    if (containersToImport.length === 0) {
+      return res.status(404).json({ error: 'No matching orphaned containers found' });
+    }
+    
+    const results = await orphanService.importOrphanedContainers(containersToImport);
+    res.json(results);
+  } catch (error) {
+    console.error('Error importing orphaned containers:', error);
+    res.status(500).json({ error: 'Failed to import orphaned containers: ' + error.message });
+  }
+});
+
+// Get all instances with orphan detection
+router.get('/with-orphan-check', async (req, res) => {
+  try {
+    // First, check for orphaned containers and auto-import them
+    const orphanResults = await orphanService.checkAndImportOrphans(true);
+    
+    // Then get all instances
+    const db = getDatabase();
+    
+    db.all('SELECT * FROM instances ORDER BY created_at DESC', async (err, rows) => {
+      if (err) {
+        db.close();
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      // Update container status for each instance
+      const instances = await Promise.all(rows.map(async (instance) => {
+        if (instance.container_id) {
+          try {
+            const containerStatus = await dockerService.getContainerStatus(instance.container_id);
+            return {
+              ...instance,
+              status: containerStatus.status,
+              running: containerStatus.running,
+              startedAt: containerStatus.startedAt,
+              finishedAt: containerStatus.finishedAt
+            };
+          } catch (error) {
+            return {
+              ...instance,
+              status: 'error',
+              running: false
+            };
+          }
+        }
+        return instance;
+      }));
+      
+      db.close();
+      res.json({
+        instances,
+        orphanInfo: orphanResults
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching instances with orphan check:', error);
+    res.status(500).json({ error: 'Failed to fetch instances with orphan check' });
   }
 });
 

@@ -32,6 +32,9 @@ api.interceptors.response.use(
 // Container API
 export const containerApi = {
   getAll: () => api.get('/containers'),
+  getAllWithOrphanCheck: () => api.get('/containers/with-orphan-check'),
+  checkOrphans: (autoImport = false) => api.get(`/containers/orphans?autoImport=${autoImport}`),
+  importOrphans: (containerIds) => api.post('/containers/orphans/import', { containerIds }),
   create: (data) => api.post('/containers', data),
   start: (id) => api.post(`/containers/${id}/start`),
   stop: (id) => api.post(`/containers/${id}/stop`),

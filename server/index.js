@@ -6,17 +6,55 @@ const compression = require('compression');
 const { initializeDatabase } = require('./database/init');
 const { securityHeaders, apiLimiter, generalLimiter } = require('./middleware/security');
 const { httpLogger, devLogger, securityLogger, logger } = require('./middleware/logging');
+const orphanService = require('./services/orphanService');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize database FIRST, before loading routes
+// Initialize database and check for orphaned containers
 async function startServer() {
   try {
     console.log('Initializing database...');
     await initializeDatabase();
+    
+    // Check for orphaned containers on startup and auto-import them
+    console.log('Checking for orphaned containers...');
+    try {
+      const orphanResults = await orphanService.checkAndImportOrphans(true);
+      
+      if (orphanResults.orphansDetected > 0) {
+        console.log(`🔄 Orphan container recovery:`);
+        console.log(`   Found: ${orphanResults.orphansDetected} orphaned containers`);
+        
+        if (orphanResults.imported) {
+          console.log(`   Imported: ${orphanResults.imported.imported.length} containers`);
+          console.log(`   Skipped: ${orphanResults.imported.skipped.length} containers`);
+          console.log(`   Failed: ${orphanResults.imported.failed.length} containers`);
+          
+          // Log details of imported containers
+          orphanResults.imported.imported.forEach(container => {
+            console.log(`   ✅ Imported: ${container.name} (${container.modelName}) on port ${container.port}`);
+          });
+          
+          // Log details of skipped containers
+          orphanResults.imported.skipped.forEach(container => {
+            console.log(`   ⏭️  Skipped: ${container.container} - ${container.reason}`);
+          });
+          
+          // Log details of failed containers
+          orphanResults.imported.failed.forEach(container => {
+            console.log(`   ❌ Failed: ${container.container} - ${container.error}`);
+          });
+        }
+      } else {
+        console.log('✅ No orphaned containers found');
+      }
+    } catch (orphanError) {
+      console.error('⚠️  Warning: Could not check for orphaned containers:', orphanError.message);
+      console.log('   This is not critical - continuing with startup...');
+    }
     
     // Now import routes after database is initialized
     const containerRoutes = require('./routes/containers');

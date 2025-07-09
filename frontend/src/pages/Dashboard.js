@@ -11,7 +11,10 @@ import {
   Server,
   Plus,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Search,
+  FileQuestion,
+  Download
 } from 'lucide-react';
 import { containerApi, gpuApi } from '../services/api';
 import toast from 'react-hot-toast';
@@ -21,6 +24,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [gpuStats, setGpuStats] = useState(null);
+  const [orphanedContainers, setOrphanedContainers] = useState([]);
+  const [showOrphans, setShowOrphans] = useState(false);
+  const [checkingOrphans, setCheckingOrphans] = useState(false);
+  const [importingOrphans, setImportingOrphans] = useState(false);
 
   const fetchInstances = async () => {
     try {
@@ -33,6 +40,77 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchInstancesWithOrphanCheck = async () => {
+    try {
+      setRefreshing(true);
+      const response = await containerApi.getAllWithOrphanCheck();
+      setInstances(response.data.instances);
+      
+      // Show toast if orphans were found and imported
+      if (response.data.orphanInfo && response.data.orphanInfo.orphansDetected > 0) {
+        const imported = response.data.orphanInfo.imported?.imported?.length || 0;
+        if (imported > 0) {
+          toast.success(`Automatically imported ${imported} orphaned containers`);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching instances with orphan check:', error);
+      toast.error('Failed to fetch instances');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const checkForOrphans = async () => {
+    try {
+      setCheckingOrphans(true);
+      const response = await containerApi.checkOrphans(false);
+      setOrphanedContainers(response.data.orphans || []);
+      setShowOrphans(true);
+      
+      if (response.data.orphansDetected === 0) {
+        toast.success('No orphaned containers found');
+      } else {
+        toast.info(`Found ${response.data.orphansDetected} orphaned containers`);
+      }
+    } catch (error) {
+      console.error('Error checking for orphans:', error);
+      toast.error('Failed to check for orphaned containers');
+    } finally {
+      setCheckingOrphans(false);
+    }
+  };
+
+  const importOrphanedContainers = async (containerIds) => {
+    try {
+      setImportingOrphans(true);
+      const response = await containerApi.importOrphans(containerIds);
+      
+      const imported = response.data.imported.length;
+      const skipped = response.data.skipped.length;
+      const failed = response.data.failed.length;
+      
+      let message = `Import complete: ${imported} imported`;
+      if (skipped > 0) message += `, ${skipped} skipped`;
+      if (failed > 0) message += `, ${failed} failed`;
+      
+      if (imported > 0) {
+        toast.success(message);
+        fetchInstances(); // Refresh instances list
+        setShowOrphans(false);
+        setOrphanedContainers([]);
+      } else {
+        toast.warning(message);
+      }
+    } catch (error) {
+      console.error('Error importing orphaned containers:', error);
+      toast.error('Failed to import orphaned containers');
+    } finally {
+      setImportingOrphans(false);
     }
   };
 
@@ -129,37 +207,132 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="flex items-center space-x-2">
-          <RefreshCw className="w-6 h-6 animate-spin text-primary-600" />
-          <span className="text-lg text-gray-600">Loading instances...</span>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">vLLM Instances</h1>
-          <p className="text-gray-600 mt-2">Manage your running language model instances</p>
-        </div>
-        <div className="flex items-center space-x-4">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <div className="flex space-x-3">
           <button
-            onClick={() => { fetchInstances(); fetchGPUStats(); }}
-            disabled={refreshing}
-            className="btn btn-secondary btn-sm"
+            onClick={checkForOrphans}
+            disabled={checkingOrphans}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            {checkingOrphans ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FileQuestion className="h-4 w-4 mr-2" />
+            )}
+            Check Orphans
           </button>
-          <Link to="/create" className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            New Instance
+          <button
+            onClick={() => fetchInstancesWithOrphanCheck()}
+            disabled={refreshing}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {refreshing ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh & Import
+          </button>
+          <Link
+            to="/create"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Instance
           </Link>
         </div>
       </div>
+
+      {/* Orphaned Containers Alert */}
+      {showOrphans && orphanedContainers.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Orphaned Containers Found
+              </h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                Found {orphanedContainers.length} container(s) that were created by vLLM Manager but are not currently tracked in the database.
+              </p>
+              <div className="mt-3 space-y-2">
+                {orphanedContainers.map((container) => (
+                  <div key={container.uuid} className="flex items-center justify-between bg-yellow-100 p-2 rounded">
+                    <div className="flex-1">
+                      <span className="font-medium text-yellow-800">{container.parsedName}</span>
+                      <span className="text-sm text-yellow-600 ml-2">
+                        ({container.name}) - {container.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex space-x-2">
+                <button
+                  onClick={() => importOrphanedContainers(orphanedContainers.map(c => c.dockerId))}
+                  disabled={importingOrphans}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50"
+                >
+                  {importingOrphans ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Import All
+                </button>
+                <button
+                  onClick={() => {
+                    setShowOrphans(false);
+                    setOrphanedContainers([]);
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GPU Stats */}
+      {gpuStats && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">GPU Statistics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {gpuStats.gpus?.map((gpu, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900">GPU {gpu.id}</h3>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    gpu.memoryUsed / gpu.memoryTotal > 0.8 
+                      ? 'bg-red-100 text-red-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {gpu.memoryUsed}MB / {gpu.memoryTotal}MB
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <div className="text-xs text-gray-500">{gpu.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Utilization: {gpu.utilization}%
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* GPU Overview */}
       {gpuStats && (
