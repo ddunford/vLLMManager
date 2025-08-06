@@ -14,7 +14,7 @@ services:
       - PORT=3001
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - DEFAULT_HOSTNAME=${DEFAULT_HOSTNAME:-localhost}
+      - DEFAULT_HOSTNAME=${DEFAULT_HOSTNAME:-inference.vm}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - FRONTEND_URL=${FRONTEND_URL:-}
     restart: unless-stopped

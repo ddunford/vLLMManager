@@ -176,7 +176,7 @@ class SettingsService {
   }
 
   async getDefaultHostname() {
-    return await this.getSetting('default_hostname', 'localhost');
+    return await this.getSetting('default_hostname', 'inference.vm');
   }
 
   async getDefaultAPIKey() {

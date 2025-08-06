@@ -231,7 +231,7 @@ class OllamaService {
    */
   async getModels(port) {
     try {
-      const response = await axios.get(`http://localhost:${port}/api/tags`, {
+      const response = await axios.get(`http://${process.env.DEFAULT_HOSTNAME || 'inference.vm'}:${port}/api/tags`, {
         timeout: 10000
       });
       return response.data.models || [];
@@ -249,7 +249,7 @@ class OllamaService {
    */
   async pullModelStream(port, modelName, onProgress) {
     const stream = await axios.post(
-      `http://localhost:${port}/api/pull`,
+      `http://${process.env.DEFAULT_HOSTNAME || 'inference.vm'}:${port}/api/pull`,
       { name: modelName, stream: true },
       { responseType: 'stream' }
     );
@@ -294,7 +294,7 @@ class OllamaService {
    */
   async deleteModel(port, modelName) {
     try {
-      const response = await axios.delete(`http://localhost:${port}/api/delete`, {
+      const response = await axios.delete(`http://${process.env.DEFAULT_HOSTNAME || 'inference.vm'}:${port}/api/delete`, {
         data: { name: modelName },
         timeout: 30000
       });
@@ -310,7 +310,7 @@ class OllamaService {
    */
   async getModelInfo(port, modelName) {
     try {
-      const response = await axios.post(`http://localhost:${port}/api/show`, {
+      const response = await axios.post(`http://${process.env.DEFAULT_HOSTNAME || 'inference.vm'}:${port}/api/show`, {
         name: modelName
       }, {
         timeout: 10000
@@ -327,7 +327,7 @@ class OllamaService {
    */
   async checkHealth(port) {
     try {
-      const response = await axios.get(`http://localhost:${port}/api/tags`, {
+      const response = await axios.get(`http://${process.env.DEFAULT_HOSTNAME || 'inference.vm'}:${port}/api/tags`, {
         timeout: 5000
       });
       return response.status === 200;

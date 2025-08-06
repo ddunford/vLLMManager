@@ -87,7 +87,7 @@ const EditInstance = () => {
         apiKey: instance.api_key ? '***' : '',  // Don't show actual key for security
         requireAuth: config.requireAuth !== false,  // Default to true if not specified
         hfApiKey: config.hfToken ? '***' : '',  // Don't show actual token for security
-        hostname: config.hostname || 'localhost',
+        hostname: config.hostname || 'inference.vm',
         gpuSelection: config.gpuSelection || 'auto',
         // Advanced vLLM options
         maxContextLength: advancedConfig.maxContextLength || '',
@@ -538,7 +538,7 @@ const EditInstance = () => {
                 value={formData.hostname}
                 onChange={handleInputChange}
                 className="input input-bordered w-full"
-                placeholder={defaults?.hostname || 'localhost'}
+                placeholder={defaults?.hostname || 'inference.vm'}
               />
             </div>
 

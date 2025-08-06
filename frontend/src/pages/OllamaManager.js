@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import config from '../config';
 import { 
   Server, 
   Plus, 
@@ -30,7 +31,7 @@ const OllamaManager = () => {
     name: 'ollama-instance',
     apiKey: '',
     requireAuth: false,
-    hostname: 'localhost',
+    hostname: 'inference.vm',
     gpuSelection: 'auto'
   });
 
@@ -70,7 +71,7 @@ const OllamaManager = () => {
         name: 'ollama-instance',
         apiKey: '',
         requireAuth: false,
-        hostname: 'localhost',
+        hostname: 'inference.vm',
         gpuSelection: 'auto'
       });
       fetchInstances();
@@ -244,7 +245,7 @@ const OllamaManager = () => {
                   value={formData.hostname}
                   onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
                   className="input input-bordered w-full"
-                  placeholder="localhost"
+                  placeholder="inference.vm"
                 />
               </div>
 
@@ -345,7 +346,7 @@ const OllamaManager = () => {
                   <div className="flex items-center text-sm text-gray-600">
                     <ExternalLink className="w-4 h-4 mr-2" />
                     <a
-                      href={`http://localhost:${instance.port}`}
+                      href={`http://${config.defaultHostname}:${instance.port}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800"

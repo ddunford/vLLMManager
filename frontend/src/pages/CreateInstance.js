@@ -66,7 +66,7 @@ const CreateInstance = () => {
         ...prev,
         apiKey: prev.apiKey || response.data.apiKey || '',  // vLLM API key default
         hfApiKey: prev.hfApiKey || response.data.hfToken || '',  // HuggingFace token default
-        hostname: prev.hostname || response.data.hostname || 'localhost',
+        hostname: prev.hostname || response.data.hostname || 'inference.vm',
         gpuSelection: prev.gpuSelection || response.data.gpuSelection || 'auto'
       }));
     } catch (error) {
@@ -505,7 +505,7 @@ const CreateInstance = () => {
                       name="hostname"
                       value={formData.hostname}
                       onChange={handleInputChange}
-                      placeholder={defaults?.hostname || "localhost"}
+                      placeholder={defaults?.hostname || "inference.vm"}
                       className="input pl-10"
                     />
                     <Globe className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />

@@ -51,8 +51,8 @@ dev_mode() {
     
     # Wait for user to stop
     echo "✅ Development servers started!"
-    echo "📱 Frontend: http://localhost:3000"
-    echo "🔧 Backend: http://localhost:3001"
+    echo "📱 Frontend: http://inference.vm:3000"
+    echo "🔧 Backend: http://inference.vm:3001"
     echo "Press Ctrl+C to stop all servers"
     
     # Cleanup on exit
@@ -69,7 +69,7 @@ prod_mode() {
     
     if [ $? -eq 0 ]; then
         echo "✅ vLLM Manager started successfully!"
-        echo "🌐 Access the application at: http://localhost:3001"
+        echo "🌐 Access the application at: http://inference.vm:3001"
         echo "📊 View logs with: docker compose logs -f vllm-manager"
         echo "🛑 Stop with: docker compose down"
     else

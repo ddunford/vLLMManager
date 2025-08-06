@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import config from '../config';
 import { 
   ArrowLeft, 
   Play, 
@@ -382,7 +383,7 @@ const OllamaDetails = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">API URL:</span>
                   <a
-                    href={`http://localhost:${instance.port}`}
+                    href={`http://${config.defaultHostname}:${instance.port}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary-600 hover:text-primary-800 flex items-center"
@@ -558,14 +559,14 @@ const OllamaDetails = () => {
                 <div className="bg-gray-50 p-4 rounded-md">
                   <p className="text-sm text-gray-600 mb-2">Base URL:</p>
                   <code className="text-sm bg-white p-2 rounded border block">
-                    http://localhost:{instance.port}
+                    http://{config.defaultHostname}:{instance.port}
                   </code>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-md">
                   <p className="text-sm text-gray-600 mb-2">Example cURL request:</p>
                   <code className="text-sm bg-white p-2 rounded border block whitespace-pre-wrap">
-{`curl -X POST http://localhost:${instance.port}/api/generate \\
+{`curl -X POST http://${config.defaultHostname}:${instance.port}/api/generate \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "llama2:7b",
@@ -581,7 +582,7 @@ const OllamaDetails = () => {
 {`import requests
 
 response = requests.post(
-    f"http://localhost:${instance.port}/api/generate",
+    f"http://${config.defaultHostname}:${instance.port}/api/generate",
     json={
         "model": "llama2:7b",
         "prompt": "Hello, how are you?",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import config from '../config';
 import { 
   ArrowLeft, 
   Play, 
@@ -223,7 +224,7 @@ const InstanceDetails = () => {
               <div className="flex justify-between">
                 <span className="text-gray-600">API URL:</span>
                 <a
-                  href={`http://localhost:${instance.port}`}
+                  href={`http://${config.defaultHostname}:${instance.port}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary-600 hover:text-primary-800 flex items-center"
@@ -336,7 +337,7 @@ const InstanceDetails = () => {
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-sm text-gray-600 mb-2">Base URL:</p>
               <code className="text-sm bg-white p-2 rounded border block">
-                http://localhost:{instance.port}
+                http://{config.defaultHostname}:{instance.port}
               </code>
             </div>
 
@@ -364,7 +365,7 @@ const InstanceDetails = () => {
               <p className="text-sm text-gray-600 mb-2">Example cURL request (OpenAI-compatible):</p>
               <code className="text-sm bg-white p-2 rounded border block whitespace-pre-wrap">
 {instance.config && JSON.parse(instance.config).requireAuth !== false ? 
-`curl -X POST http://localhost:${instance.port}/v1/chat/completions \\
+`curl -X POST http://${config.defaultHostname}:${instance.port}/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer ${instance.api_key || 'YOUR_API_KEY'}" \\
   -d '{
@@ -372,7 +373,7 @@ const InstanceDetails = () => {
     "messages": [{"role": "user", "content": "Hello!"}],
     "max_tokens": 100
   }'` :
-`curl -X POST http://localhost:${instance.port}/v1/chat/completions \\
+`curl -X POST http://${config.defaultHostname}:${instance.port}/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${instance.model_name}",
@@ -386,7 +387,7 @@ const InstanceDetails = () => {
               <p className="text-sm text-gray-600 mb-2">Using with OpenUI or other OpenAI-compatible tools:</p>
               <code className="text-sm bg-white p-2 rounded border block whitespace-pre-wrap">
 {`# Set environment variables
-export OPENAI_API_BASE="http://localhost:${instance.port}/v1"
+export OPENAI_API_BASE="http://${config.defaultHostname}:${instance.port}/v1"
 ${instance.config && JSON.parse(instance.config).requireAuth !== false ? 
 `export OPENAI_API_KEY="${instance.api_key || 'YOUR_API_KEY'}"` : 
 '# No API key needed - authentication disabled'}
@@ -401,7 +402,7 @@ ${instance.config && JSON.parse(instance.config).requireAuth !== false ?
 {`from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://localhost:${instance.port}/v1",
+    base_url="http://${config.defaultHostname}:${instance.port}/v1",
     api_key="${instance.config && JSON.parse(instance.config).requireAuth !== false ? 
       (instance.api_key || 'YOUR_API_KEY') : 
       'dummy'}"  # Use 'dummy' when auth is disabled

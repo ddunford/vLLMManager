@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import config from '../config';
 import { 
   Play, 
   Square, 
@@ -464,7 +465,7 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">URL:</span>
                   <a
-                    href={`http://localhost:${instance.port}`}
+                    href={`http://${config.defaultHostname}:${instance.port}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary-600 hover:text-primary-800 flex items-center"

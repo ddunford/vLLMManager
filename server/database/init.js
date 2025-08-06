@@ -97,7 +97,7 @@ async function initializeDatabase() {
       db.run(`
         INSERT OR IGNORE INTO settings (key, value, description) VALUES 
         ('default_hf_token', '', 'Default HuggingFace API token for accessing models'),
-        ('default_hostname', '${process.env.DEFAULT_HOSTNAME || 'localhost'}', 'Default hostname for vLLM instance URLs'),
+        ('default_hostname', '${process.env.DEFAULT_HOSTNAME || 'inference.vm'}', 'Default hostname for vLLM instance URLs'),
         ('default_api_key', '${process.env.DEFAULT_API_KEY || 'localkey'}', 'Default API key for vLLM instances'),
         ('auto_start_instances', 'true', 'Automatically start instances after creation'),
         ('default_model_filter', 'text-generation', 'Default filter for model search'),

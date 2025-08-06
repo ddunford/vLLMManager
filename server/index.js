@@ -65,7 +65,7 @@ async function startServer() {
     const testRoutes = require('./routes/test');
 
     // Security and logging middleware
-    app.use(securityHeaders);
+    // app.use(securityHeaders); // Temporarily disabled for debugging
     app.use(compression());
     app.use(securityLogger);
     

@@ -17,12 +17,14 @@ import {
   Code,
   Image
 } from 'lucide-react';
-import { testApi } from '../services/api';
+import { testApi, ollamaApi } from '../services/api';
 import toast from 'react-hot-toast';
 
 const Test = () => {
   const [instances, setInstances] = useState([]);
   const [selectedInstance, setSelectedInstance] = useState(null);
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [selectedOllamaModel, setSelectedOllamaModel] = useState('');
   const [capabilities, setCapabilities] = useState(null);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
@@ -66,7 +68,11 @@ const Test = () => {
       setInstances(response.data);
       
       if (response.data.length > 0 && !selectedInstance) {
-        setSelectedInstance(response.data[0]);
+        const firstInstance = response.data[0];
+        setSelectedInstance(firstInstance);
+        if (firstInstance.type === 'ollama') {
+          fetchOllamaModels(firstInstance.id);
+        }
       }
     } catch (error) {
       console.error('Error fetching instances:', error);
@@ -85,8 +91,26 @@ const Test = () => {
     }
   };
 
-  const fetchCapabilities = async (instanceId) => {
+  const fetchOllamaModels = async (instanceId) => {
     try {
+      const response = await ollamaApi.getModels(instanceId);
+      setOllamaModels(response.data.models || []);
+      if (response.data.models?.length > 0) {
+        setSelectedOllamaModel(response.data.models[0].name);
+      }
+    } catch (error) {
+      console.error('Error fetching Ollama models:', error);
+      toast.error('Could not load models for Ollama instance.');
+    }
+  };
+
+  const fetchCapabilities = async (instanceId, instanceType) => {
+    try {
+      // For Ollama, we assume chat is supported and don't need to detect other capabilities
+      if (instanceType === 'ollama') {
+        setCapabilities({ chatCompletion: true });
+        return;
+      }
       const response = await testApi.getCapabilities(instanceId);
       setCapabilities(response.data);
     } catch (error) {
@@ -102,8 +126,12 @@ const Test = () => {
 
   useEffect(() => {
     if (selectedInstance) {
-      fetchCapabilities(selectedInstance.id);
+      fetchCapabilities(selectedInstance.id, selectedInstance.type);
       setConversationHistory([]);
+      setOllamaModels([]); // Clear models on instance change
+      if (selectedInstance.type === 'ollama') {
+        fetchOllamaModels(selectedInstance.id);
+      }
     }
   }, [selectedInstance]);
 
@@ -142,6 +170,10 @@ const Test = () => {
   const handleChatSubmit = async (e) => {
     e.preventDefault();
     if (!selectedInstance || !chatInput.trim()) return;
+    if (selectedInstance.type === 'ollama' && !selectedOllamaModel) {
+      toast.error('Please select a model for this Ollama instance.');
+      return;
+    }
 
     const userMessage = {
       role: 'user',
@@ -157,7 +189,9 @@ const Test = () => {
     try {
       const response = await testApi.chat(selectedInstance.id, {
         messages: messages.map(msg => ({ role: msg.role, content: msg.content })),
-        options: chatOptions
+        options: chatOptions,
+        instanceType: selectedInstance.type,
+        modelName: selectedInstance.type === 'ollama' ? selectedOllamaModel : selectedInstance.model_name
       });
 
       if (response.data.success) {

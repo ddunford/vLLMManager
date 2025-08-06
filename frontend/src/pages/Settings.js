@@ -36,7 +36,7 @@ const Settings = () => {
       type: 'text',
       icon: Globe,
       description: 'Default hostname for vLLM instance URLs',
-      placeholder: 'localhost'
+      placeholder: 'inference.vm'
     },
     'default_api_key': {
       label: 'Default vLLM API Key',

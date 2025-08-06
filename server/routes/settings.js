@@ -94,7 +94,7 @@ router.post('/reset', async (req, res) => {
   try {
     const defaultSettings = {
       'default_hf_token': '',
-      'default_hostname': 'localhost',
+      'default_hostname': 'inference.vm',
       'default_api_key': 'localkey',
       'auto_start_instances': 'true',
       'default_model_filter': 'text-generation',

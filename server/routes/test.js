@@ -51,13 +51,17 @@ router.get('/instances/:id/capabilities', async (req, res) => {
 router.post('/instances/:id/chat', async (req, res) => {
   try {
     const { id } = req.params;
-    const { messages, options = {} } = req.body;
+    const { messages, options = {}, instanceType, modelName } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array is required' });
     }
+    
+    if (instanceType === 'ollama' && !modelName) {
+      return res.status(400).json({ error: 'Ollama model name is required' });
+    }
 
-    const result = await testService.chatCompletion(id, messages, options);
+    const result = await testService.chatCompletion(id, instanceType, modelName, messages, options);
     
     if (result.success) {
       res.json(result);

@@ -18,7 +18,7 @@ services:
       - PORT=3001
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - DEFAULT_HOSTNAME=localhost
+      - DEFAULT_HOSTNAME=inference.vm
       - LOG_LEVEL=${LOG_LEVEL:-info}
     restart: unless-stopped
     security_opt:
@@ -31,7 +31,6 @@ services:
     # GPU access for detecting and monitoring GPUs
     devices:
       - /dev/nvidia0:/dev/nvidia0
-      - /dev/nvidia1:/dev/nvidia1
       - /dev/nvidiactl:/dev/nvidiactl
       - /dev/nvidia-uvm:/dev/nvidia-uvm
       - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
